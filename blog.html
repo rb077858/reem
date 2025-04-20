@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="he">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בלוג אישי</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            direction: rtl;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1, h2 {
+            color: #007bff;
+        }
+
+        form {
+            background-color: #fff;
+            padding: 20px;
+            margin-bottom: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input[type="email"],
+        input[type="password"],
+        input[type="text"],
+        textarea {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            resize: vertical;
+        }
+
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        button:hover {
+            background-color: #0056b3;
+        }
+
+        #signup-error, #signin-error, #create-page-error {
+            color: red;
+            margin-top: 10px;
+        }
+
+        hr {
+            border: 1px solid #ddd;
+            margin: 20px 0;
+        }
+
+        .page-element {
+            background-color: #fff;
+            padding: 15px;
+            margin-bottom: 15px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+
+        .page-element h3 {
+            color: #28a745;
+            margin-top: 0;
+        }
+
+        .page-element h3 a {
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .page-element p {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div id="signup-section">
+        <h1>הרשמה</h1>
+        <form id="signup-form">
+            <div>
+                <label for="email">כתובת אימייל:</label>
+                <input type="email" id="email" name="email" required>
+            </div>
+            <div>
+                <label for="password">סיסמה:</label>
+                <input type="password" id="password" name="password" required>
+            </div>
+            <button type="submit">הרשמה</button>
+            <div id="signup-error" style="color: red;"></div>
+        </form>
+        <hr>
+    </div>
+
+    <div id="signin-section">
+        <h2>כניסה</h2>
+        <form id="signin-form">
+            <div>
+                <label for="signin-email">כתובת אימייל:</label>
+                <input type="email" id="signin-email" name="signin-email" required>
+            </div>
+            <div>
+                <label for="signin-password">סיסמה:</label>
+                <input type="password" id="signin-password" name="signin-password" required>
+            </div>
+            <button type="submit">כניסה</button>
+            <div id="signin-error" style="color: red;"></div>
+        </form>
+        <hr>
+    </div>
+
+    <div id="create-page-section" style="display: none;">
+        <h2>יצירת עמוד חדש</h2>
+        <form id="create-page-form">
+            <div>
+                <label for="page-title">כותרת:</label>
+                <input type="text" id="page-title" name="page-title" required>
+            </div>
+            <div>
+                <label for="page-content">תוכן:</label>
+                <textarea id="page-content" name="page-content" rows="10" required></textarea>
+            </div>
+            <button type="submit">שמור עמוד</button>
+            <div id="create-page-error" style="color: red;"></div>
+        </form>
+        <button id="signout-button" style="display: none;">התנתקות</button>
+        <hr>
+    </div>
+
+    <div id="pages-list-section">
+        <h2>עמודים שנוצרו</h2>
+        <div id="pages-list">
+        </div>
+    </div>
+
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+    <script>
+        // אתחול Firebase (החלף עם פרטי הפרויקט שלך!)
+        const firebaseConfig = {
+          apiKey: "AIzaSyAO-I5qywRrNMH5h8HpQjNAW2pv94Ieaiw",
+  authDomain: "blog-68310.firebaseapp.com",
+  projectId: "blog-68310",
+  storageBucket: "blog-68310.firebasestorage.app",
+  messagingSenderId: "395236652613",
+  appId: "1:395236652613:web:0f7ee6a2063336cd39952c"
+        };
+
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        const signupForm = document.getElementById('signup-form');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        const signupError = document.getElementById('signup-error');
+
+        const signinForm = document.getElementById('signin-form');
+        const signinEmailInput = document.getElementById('signin-email');
+        const signinPasswordInput = document.getElementById('signin-password');
+        const signinError = document.getElementById('signin-error');
+
+        const createPageForm = document.getElementById('create-page-form');
+        const pageTitleInput = document.getElementById('page-title');
+        const pageContentInput = document.getElementById('page-content');
+        const createPageError = document.getElementById('create-page-error');
+
+        const signupSection = document.getElementById('signup-section');
+        const signinSection = document.getElementById('signin-section');
+        const createPageSection = document.getElementById('create-page-section');
+        const pagesListDiv = document.getElementById('pages-list');
+        const pagesListSection = document.getElementById('pages-list-section');
+        const signoutButton = document.getElementById('signout-button');
+
+        auth.onAuthStateChanged((user) => {
+            if (user) {
+                console.log('משתמש מחובר:', user);
+                signupSection.style.display = 'none';
+                signinSection.style.display = 'none';
+                createPageSection.style.display = 'block';
+                pagesListSection.style.display = 'block';
+                signoutButton.style.display = 'block';
+                displayPages();
+            } else {
+                console.log('אין משתמש מחובר.');
+                signupSection.style.display = 'block';
+                signinSection.style.display = 'block';
+                createPageSection.style.display = 'none';
+                pagesListSection.style.display = 'block';
+                signoutButton.style.display = 'none';
+                displayPages();
+            }
+        });
+
+        // טיפול בהרשמה
+        signupForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const email = emailInput.value;
+            const password = passwordInput.value;
+
+            auth.createUserWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    console.log('משתמש נרשם בהצלחה:', user);
+                    signupError.textContent = '';
+                    alert('הרשמה בוצעה בהצלחה!');
+                })
+                .catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.error('שגיאה בהרשמה:', errorCode, errorMessage);
+                    signupError.textContent = errorMessage;
+                });
+        });
+
+        // טיפול בכניסה
+        signinForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const email = signinEmailInput.value;
+            const password = signinPasswordInput.value;
+
+            auth.signInWithEmailAndPassword(email, password)
+                .then((userCredential) => {
+                    const user = userCredential.user;
+                    console.log('משתמש התחבר בהצלחה:', user);
+                    signinError.textContent = '';
+                    alert('התחברת בהצלחה!');
+                    window.location.reload();
+                })
+                .catch((error) => {
+                    const errorCode = error.code;
+                    const errorMessage = error.message;
+                    console.error('שגיאה בכניסה:', errorCode, errorMessage);
+                    signinError.textContent = errorMessage;
+                });
+        });
+
+        // טיפול ביצירת עמוד
+        createPageForm.addEventListener('submit', (event) => {
+            event.preventDefault();
+            const title = pageTitleInput.value;
+            const content = pageContentInput.value;
+            const user = auth.currentUser;
+
+            if (user) {
+                const userId = user.uid;
+                db.collection('pages').add({
+                    userId: userId,
+                    title: title,
+                    content: content,
+                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                })
+                .then((docRef) => {
+                    console.log('העמוד נשמר בהצלחה עם ID:', docRef.id);
+                    createPageError.textContent = '';
+                    alert('העמוד נשמר בהצלחה!');
+                    pageTitleInput.value = '';
+                    pageContentInput.value = '';
+                    displayPages();
+                })
+                .catch((error) => {
+                    console.error('שגיאה בשמירת העמוד:', error);
+                    createPageError.textContent = error.message;
+                });
+            } else {
+                createPageError.textContent = 'עליך להיות מחובר כדי ליצור עמוד.';
+            }
+        });
+
+        // טיפול בהתנתקות
+        signoutButton.addEventListener('click', () => {
+            auth.signOut().then(() => {
+                console.log('התנתקות בוצעה בהצלחה.');
+                window.location.reload();
+            }).catch((error) => {
+                console.error('שגיאה בהתנתקות:', error);
+                alert('אירעה שגיאה בהתנתקות.');
+            });
+        });
+
+        // הצגת העמודים
+        function displayPages() {
+            db.collection('pages').orderBy('createdAt', 'desc').get()
+                .then((querySnapshot) => {
+                    pagesListDiv.innerHTML = '';
+                    querySnapshot.forEach((doc) => {
+                        const pageData = doc.data();
+                        const pageElement = document.createElement('div');
+                        pageElement.classList.add('page-element');
+                        pageElement.innerHTML = `
+                            <h3><a href="?pageId=${doc.id}">${pageData.title}</a></h3>
+                            <p>${pageData.content.substring(0, 100)}...</p>
+                            <p>נוצר על ידי משתמש: ${pageData.userId}</p>
+                            <hr>
+                        `;
+                        pagesListDiv.appendChild(pageElement);
+                    });
+                })
+                .catch((error) => {
+                    console.error('שגיאה בשליפת העמודים:', error);
+                    pagesListDiv.textContent = 'אירעה שגיאה בטעינת העמודים.';
+                });
+        }
+
+        // הצגת עמוד בודד
+        function displaySinglePage(pageId) {
+            db.collection('pages').doc(pageId).get()
+                .then((doc) => {
+                    if (doc.exists) {
+                        const pageData = doc.data();
+                        pagesListDiv.innerHTML = `
+                            <h2>${pageData.title}</h2>
+                            <p>${pageData.content}</p>
+                            <p>נוצר על ידי משתמש: ${pageData.userId}</p>
+                            <button onclick="window.location.href = window.location.pathname;">חזרה לרשימה</button>
+                        `;
+                    } else {
+                        pagesListDiv.innerHTML = '<p>העמוד לא נמצא.</p>';
+                    }
+                })
+                .catch((error) => {
+                    console.error('שגיאה בשליפת העמוד:', error);
+                    pagesListDiv.textContent = 'אירעה שגיאה בטעינת העמוד.';
+                });
+        }
+
+        // בדיקה אם יש pageId בפרמטרים של ה-URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const pageId = urlParams.get('pageId');
+        const displayPagesListSection = document.getElementById('pages-list-section');
+
+        if (pageId) {
+            displayPagesListSection.style.display = 'none';
+            displaySinglePage(pageId);
+        } else {
+            displayPagesListSection.style.display = 'block';
+            displayPages();
+        }
+    </script>
+</body>
+</html>
